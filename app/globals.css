@@ -1,26 +1,43 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #f7f8fa;
+  --surface: #ffffff;
+  --foreground: #181c23;
+  --primary: #ff5a38;
+  --primary-hover: #e84e2e;
+  --primary-tint: #fff1ee;
+  --primary-border: #ffdcd4;
+  --border-subtle: #edeff2;
+  --text-muted: #687182;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-plus-jakarta), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
 }
+
+/* Hide scrollbar for clean horizontal pill sliders */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Tabular figures for pricing numbers */
+.tnum {
+  font-feature-settings: "tnum" 1;
+}
+
+/* Tap highlight prevention for mobile PWA */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
