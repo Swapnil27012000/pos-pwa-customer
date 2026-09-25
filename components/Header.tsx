@@ -30,7 +30,7 @@ export const Header: React.FC = () => {
           <div className="flex items-center gap-1 text-[12px] text-[#687182] font-medium mt-0.5">
             <MapPinIcon size={12} className="text-[#FF5A38] shrink-0" />
             <span className="truncate">
-              {restaurant.branchName} • Table {restaurant.tableNumber}
+              {restaurant.branchName || restaurant.name} • {restaurant.tableNumber.startsWith("Table") ? restaurant.tableNumber : `Table ${restaurant.tableNumber}`}
             </span>
           </div>
         </div>

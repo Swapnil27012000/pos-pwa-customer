@@ -10,37 +10,164 @@ import { DishItem } from "@/types/restaurant";
 export const PopularDishes: React.FC = () => {
   const {
     data,
+    isLoading,
+    refreshMenu,
+    loadSampleDishes,
     activeCategory,
+    setActiveCategory,
     isDishInCart,
     toggleDishInCart,
     setSelectedDishForCustomization,
   } = useRestaurant();
 
-  // Filter dishes by active category if matches, or show popular dishes by default
+  const currencySymbol =
+    data.restaurant.currency?.toUpperCase() === "USD"
+      ? "$"
+      : data.restaurant.currency?.toUpperCase() === "EUR"
+      ? "€"
+      : data.restaurant.currency?.toUpperCase() === "GBP"
+      ? "£"
+      : "₹";
+
+  // Filter dishes by active category if selected, otherwise show all dishes
   const filteredDishes = data.dishes.filter((d) => {
     if (!activeCategory || activeCategory === "all") return true;
-    // If active category has dishes, show them, otherwise show all popular dishes
-    const matchesCategory = d.category === activeCategory;
-    const categoryHasDishes = data.dishes.some((item) => item.category === activeCategory);
-    return categoryHasDishes ? matchesCategory : true;
+    return d.category === activeCategory;
   });
 
-  const displayDishes = filteredDishes.length > 0 ? filteredDishes : data.dishes;
+  const activeCategoryObj = data.categories.find((c) => c.id === activeCategory);
+  const sectionTitle =
+    activeCategory === "all" || !activeCategoryObj
+      ? "Popular Dishes"
+      : `${activeCategoryObj.emoji} ${activeCategoryObj.name}`;
+
+  // 1. Loading Skeleton State
+  if (isLoading) {
+    return (
+      <section id="popular-dishes" className="space-y-3.5 scroll-mt-20">
+        <div className="flex items-center justify-between">
+          <div className="h-6 w-36 bg-gray-200 animate-pulse rounded-lg" />
+          <div className="h-4 w-20 bg-gray-200 animate-pulse rounded-lg" />
+        </div>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="bg-white rounded-2xl border border-[#EDEFF2] p-3 flex gap-3 animate-pulse"
+            >
+              <div className="w-24 h-24 rounded-xl bg-gray-200 shrink-0" />
+              <div className="flex-1 flex flex-col justify-between py-1">
+                <div className="space-y-2">
+                  <div className="h-4 w-3/4 bg-gray-200 rounded" />
+                  <div className="h-3 w-1/2 bg-gray-100 rounded" />
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <div className="h-5 w-14 bg-gray-200 rounded" />
+                  <div className="h-7 w-16 bg-gray-200 rounded-xl" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  // 2. Empty Dishes State for the Restaurant
+  if (data.dishes.length === 0) {
+    return (
+      <section id="popular-dishes" className="space-y-3.5 scroll-mt-20">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[18px] font-bold text-[#181C23] tracking-tight flex items-center gap-2">
+            <span>Restaurant Menu</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#FF5A38]" />
+          </h2>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-[#EDEFF2] p-6 text-center shadow-xs space-y-3">
+          <div className="w-14 h-14 rounded-2xl bg-[#FFF1EE] text-[#FF5A38] mx-auto flex items-center justify-center text-2xl shadow-inner">
+            🍽️
+          </div>
+          <div>
+            <h3 className="text-[16.5px] font-bold text-[#181C23]">
+              Menu In Preparation
+            </h3>
+            <p className="text-[13px] text-[#687182] mt-1 max-w-xs mx-auto leading-relaxed">
+              {data.restaurant.name} has not published dishes to this digital menu yet.
+            </p>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
+            <button
+              type="button"
+              onClick={() => refreshMenu()}
+              className="px-4 py-2 rounded-xl text-[13px] font-bold bg-[#FF5A38] text-white hover:bg-[#E84E2E] transition active:scale-95 shadow-xs"
+            >
+              Refresh Menu
+            </button>
+            <button
+              type="button"
+              onClick={() => loadSampleDishes()}
+              className="px-4 py-2 rounded-xl text-[13px] font-semibold bg-[#F4F6FA] text-[#4B5563] hover:bg-[#EBF0F8] transition active:scale-95"
+            >
+              Preview Sample Dishes
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // 3. Category Filtered Empty State (e.g. selected category has no items)
+  if (filteredDishes.length === 0) {
+    return (
+      <section id="popular-dishes" className="space-y-3.5 scroll-mt-20">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[18px] font-bold text-[#181C23] tracking-tight flex items-center gap-2">
+            <span>{sectionTitle}</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#FF5A38]" />
+          </h2>
+          <button
+            type="button"
+            onClick={() => setActiveCategory("all")}
+            className="text-[13px] font-semibold text-[#FF5A38] hover:underline"
+          >
+            Show All ({data.dishes.length})
+          </button>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-[#EDEFF2] p-6 text-center shadow-xs">
+          <p className="text-[13.5px] text-[#687182]">
+            No dishes listed under this category yet.
+          </p>
+          <button
+            type="button"
+            onClick={() => setActiveCategory("all")}
+            className="mt-3 px-4 py-2 rounded-xl text-[13px] font-bold bg-[#FFF1EE] text-[#FF5A38] hover:bg-[#FFE5DE] transition"
+          >
+            View All Dishes
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section id="popular-dishes" className="space-y-3.5 scroll-mt-20">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-[18px] font-bold text-[#181C23] tracking-tight flex items-center gap-2">
-          <span>Popular Dishes</span>
+          <span>{sectionTitle}</span>
           <span className="w-2.5 h-2.5 rounded-full bg-[#FF5A38]" />
         </h2>
-        <span className="text-[13px] text-[#687182] font-medium">Recommended</span>
+        <span className="text-[13px] text-[#687182] font-medium">
+          {filteredDishes.length} {filteredDishes.length === 1 ? "item" : "items"}
+        </span>
       </div>
 
       {/* Dish List */}
       <div className="space-y-3">
-        {displayDishes.map((dish) => {
+        {filteredDishes.map((dish) => {
           const added = isDishInCart(dish.id);
           const hasBadge = Boolean(dish.badge);
 
@@ -105,7 +232,7 @@ export const PopularDishes: React.FC = () => {
                 {/* Price and Add/Added Button Row */}
                 <div className="flex items-center justify-between mt-2 pt-1">
                   <div className="text-[17px] font-bold text-[#181C23] tnum">
-                    ₹{dish.price}
+                    {currencySymbol}{dish.price}
                   </div>
 
                   <button

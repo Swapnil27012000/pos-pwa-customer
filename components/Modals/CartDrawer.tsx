@@ -19,6 +19,19 @@ export const CartDrawer: React.FC = () => {
     }, 2500);
   };
 
+  const currencySymbol =
+    data.restaurant.currency?.toUpperCase() === "USD"
+      ? "$"
+      : data.restaurant.currency?.toUpperCase() === "EUR"
+      ? "€"
+      : data.restaurant.currency?.toUpperCase() === "GBP"
+      ? "£"
+      : "₹";
+
+  const displayTable = cart.tableNumber.startsWith("Table")
+    ? cart.tableNumber
+    : `Table ${cart.tableNumber}`;
+
   const gstTax = Math.round(cart.totalAmount * 0.05);
   const grandTotal = cart.totalAmount + gstTax;
 
@@ -34,7 +47,7 @@ export const CartDrawer: React.FC = () => {
             <div>
               <h3 className="text-[16px] font-bold text-[#181C23]">Your Order Slip</h3>
               <p className="text-[12px] text-[#687182]">
-                Dine-in at Table {cart.tableNumber} • {data.restaurant.name}
+                Dine-in at {displayTable} • {data.restaurant.name}
               </p>
             </div>
           </div>
@@ -56,7 +69,7 @@ export const CartDrawer: React.FC = () => {
               Order Sent to Kitchen!
             </h4>
             <p className="text-[13px] text-[#687182] max-w-xs mx-auto">
-              Your slip has been assigned to Kitchen Station #2. Preparing your dishes for Table {cart.tableNumber}.
+              Your slip has been assigned to Kitchen Station #2. Preparing your dishes for {displayTable}.
             </p>
           </div>
         ) : cart.items.length === 0 ? (
@@ -87,14 +100,14 @@ export const CartDrawer: React.FC = () => {
                         {item.dish.name}
                       </h4>
                       <p className="text-[12px] text-[#687182] mt-0.5">
-                        {item.quantity}x • ₹{item.dish.price}
+                        {item.quantity}x • {currencySymbol}{item.dish.price}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2.5">
                     <span className="text-[14.5px] font-bold text-[#181C23] tnum">
-                      ₹{item.totalPrice}
+                      {currencySymbol}{item.totalPrice}
                     </span>
                     <button
                       type="button"
@@ -112,15 +125,15 @@ export const CartDrawer: React.FC = () => {
             <div className="p-4 border-t border-[#EDEFF2] bg-[#F7F8FA] space-y-1.5 text-[13px]">
               <div className="flex justify-between text-[#687182]">
                 <span>Items Subtotal</span>
-                <span className="font-semibold text-[#181C23] tnum">₹{cart.totalAmount}</span>
+                <span className="font-semibold text-[#181C23] tnum">{currencySymbol}{cart.totalAmount}</span>
               </div>
               <div className="flex justify-between text-[#687182]">
                 <span>Taxes & GST (5%)</span>
-                <span className="font-semibold text-[#181C23] tnum">₹{gstTax}</span>
+                <span className="font-semibold text-[#181C23] tnum">{currencySymbol}{gstTax}</span>
               </div>
               <div className="flex justify-between text-[15px] font-bold text-[#181C23] pt-1.5 border-t border-[#EDEFF2]">
                 <span>Total Payable</span>
-                <span className="text-[#FF5A38] tnum">₹{grandTotal}</span>
+                <span className="text-[#FF5A38] tnum">{currencySymbol}{grandTotal}</span>
               </div>
             </div>
 
@@ -131,8 +144,8 @@ export const CartDrawer: React.FC = () => {
                 onClick={handlePlaceOrder}
                 className="w-full py-3.5 rounded-xl bg-[#FF5A38] hover:bg-[#E84E2E] active:scale-98 text-white font-bold text-[15px] shadow-md shadow-orange-500/20 transition flex items-center justify-center gap-2"
               >
-                <span>Confirm Order for Table {cart.tableNumber}</span>
-                <span>(₹{grandTotal})</span>
+                <span>Confirm Order for {displayTable}</span>
+                <span>({currencySymbol}{grandTotal})</span>
               </button>
             </div>
           </>

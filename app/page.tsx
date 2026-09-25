@@ -19,7 +19,7 @@ import { CartDrawer } from "@/components/Modals/CartDrawer";
 import { OrdersView } from "@/components/OrdersView";
 import { FloorPlanView } from "@/components/FloorPlanView";
 
-function MainContent() {
+export function MainContent() {
   const { activeTab, copiedCouponToast } = useRestaurant();
 
   return (

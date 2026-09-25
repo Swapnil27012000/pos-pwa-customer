@@ -7,7 +7,8 @@ import { VegNonVegBadge } from "../VegNonVegBadge";
 import { useRestaurant } from "@/context/RestaurantContext";
 
 export const DishCustomizationModal: React.FC = () => {
-  const { selectedDishForCustomization, setSelectedDishForCustomization, addToCart } = useRestaurant();
+  const { selectedDishForCustomization, setSelectedDishForCustomization, addToCart, data } =
+    useRestaurant();
 
   const [quantity, setQuantity] = useState(1);
   const [selectedPortion, setSelectedPortion] = useState("reg");
@@ -17,16 +18,28 @@ export const DishCustomizationModal: React.FC = () => {
   if (!selectedDishForCustomization) return null;
   const dish = selectedDishForCustomization;
 
+  const currencySymbol =
+    data.restaurant.currency?.toUpperCase() === "USD"
+      ? "$"
+      : data.restaurant.currency?.toUpperCase() === "EUR"
+      ? "€"
+      : data.restaurant.currency?.toUpperCase() === "GBP"
+      ? "£"
+      : "₹";
+
   const portionOptions = dish.portionSizes || [
     { id: "reg", name: "Regular Serving", price: 0, included: true },
-    { id: "large", name: "Large Serving", price: 80 },
   ];
 
-  const extrasOptions = [
-    { id: "cheese", name: "Extra Melted Cheese Layer", price: 40 },
-    { id: "chutney", name: "Spicy Mint & Coriander Chutney", price: 20 },
-    { id: "sides", name: "Grilled Herb Skewers", price: 60 },
-  ];
+  // Extract all available modifier options from real modifierGroups or fallback extras
+  const realModifierOptions = (dish.modifierGroups || []).flatMap((g) => g.options);
+  const extrasOptions =
+    realModifierOptions.length > 0
+      ? realModifierOptions
+      : [
+          { id: "cheese", name: "Extra Cheese Layer", price: 40 },
+          { id: "chutney", name: "Special House Sauce", price: 20 },
+        ];
 
   const toggleExtra = (id: string) => {
     setSelectedExtras((prev) =>
@@ -103,7 +116,7 @@ export const DishCustomizationModal: React.FC = () => {
               <div className="text-right">
                 <div className="text-[11px] text-gray-300">Base price</div>
                 <div className="text-[20px] font-extrabold text-white tnum">
-                  ₹{dish.price}
+                  {currencySymbol}{dish.price}
                 </div>
               </div>
             </div>
@@ -176,7 +189,7 @@ export const DishCustomizationModal: React.FC = () => {
                       </span>
                     </div>
                     <span className="text-[13px] font-medium text-[#687182]">
-                      {opt.price === 0 ? "Included" : `+₹${opt.price}`}
+                      {opt.price === 0 ? "Included" : `+${currencySymbol}${opt.price}`}
                     </span>
                   </label>
                 );
@@ -219,7 +232,7 @@ export const DishCustomizationModal: React.FC = () => {
                       </span>
                     </div>
                     <span className="text-[13px] font-bold text-[#FF5A38]">
-                      +₹{extra.price}
+                      +{currencySymbol}{extra.price}
                     </span>
                   </label>
                 );
@@ -250,7 +263,7 @@ export const DishCustomizationModal: React.FC = () => {
             className="w-full py-3.5 rounded-xl bg-[#FF5A38] hover:bg-[#E84E2E] active:scale-98 text-white font-bold text-[15px] flex items-center justify-between px-5 shadow-md shadow-orange-500/20 transition"
           >
             <span>Add to Cart</span>
-            <span className="tnum">₹{totalPrice}</span>
+            <span className="tnum">{currencySymbol}{totalPrice}</span>
           </button>
         </div>
       </div>

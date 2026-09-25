@@ -1,6 +1,7 @@
 export interface RestaurantProfile {
   id: string;
   name: string;
+  slug?: string;
   branchName: string;
   tableNumber: string;
   tableArea: string;
@@ -12,6 +13,7 @@ export interface RestaurantProfile {
   avgPrice: string;
   address: string;
   mapUrl: string;
+  currency?: string;
   unreadNotifications: number;
 }
 

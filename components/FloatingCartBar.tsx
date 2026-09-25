@@ -5,9 +5,22 @@ import { ShoppingBagIcon, ArrowRightIcon } from "./Icons";
 import { useRestaurant } from "@/context/RestaurantContext";
 
 export const FloatingCartBar: React.FC = () => {
-  const { cart, setIsCartOpen } = useRestaurant();
+  const { cart, data, setIsCartOpen } = useRestaurant();
 
   if (cart.itemCount === 0) return null;
+
+  const currencySymbol =
+    data.restaurant.currency?.toUpperCase() === "USD"
+      ? "$"
+      : data.restaurant.currency?.toUpperCase() === "EUR"
+      ? "€"
+      : data.restaurant.currency?.toUpperCase() === "GBP"
+      ? "£"
+      : "₹";
+
+  const displayTable = cart.tableNumber.startsWith("Table")
+    ? cart.tableNumber
+    : `Table ${cart.tableNumber}`;
 
   return (
     <div className="sticky bottom-18 z-20 px-4 w-full max-w-md mx-auto pointer-events-auto">
@@ -26,7 +39,7 @@ export const FloatingCartBar: React.FC = () => {
               {cart.itemCount} {cart.itemCount === 1 ? "item" : "items"} in Order
             </span>
             <span className="text-[12px] text-gray-400 font-medium tnum">
-              ₹{cart.totalAmount} • Table {cart.tableNumber}
+              {currencySymbol}{cart.totalAmount} • {displayTable}
             </span>
           </div>
         </div>

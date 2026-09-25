@@ -7,6 +7,8 @@ export const CategoryList: React.FC = () => {
   const { data, activeCategory, setActiveCategory } = useRestaurant();
   const { categories } = data;
 
+  if (categories.length === 0) return null;
+
   return (
     <section className="space-y-3">
       {/* Header */}
@@ -17,10 +19,11 @@ export const CategoryList: React.FC = () => {
         <button
           type="button"
           onClick={() => {
+            setActiveCategory("all");
             const el = document.getElementById("popular-dishes");
             if (el) el.scrollIntoView({ behavior: "smooth" });
           }}
-          className="text-[13.5px] font-bold text-[#B91C1C] hover:text-[#991B1B] hover:underline"
+          className="text-[13.5px] font-bold text-[#FF5A38] hover:text-[#E84E2E] hover:underline"
         >
           View All
         </button>
@@ -28,6 +31,20 @@ export const CategoryList: React.FC = () => {
 
       {/* Horizontal Scrollable Pills */}
       <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar -mx-4 px-4 py-1">
+        {/* All Items Pill */}
+        <button
+          type="button"
+          onClick={() => setActiveCategory("all")}
+          className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl text-[13.5px] whitespace-nowrap shrink-0 transition shadow-xs active:scale-97 ${
+            activeCategory === "all"
+              ? "bg-[#FFEFE9] border border-[#FF5A38] text-[#181C23] font-bold ring-1 ring-[#FF5A38]/30"
+              : "bg-white border border-[#EDEFF2] text-[#374151] font-medium hover:border-gray-300"
+          }`}
+        >
+          <span className="text-[15px]">✨</span>
+          <span>All Items</span>
+        </button>
+
         {categories.map((cat) => {
           const isActive = activeCategory === cat.id;
           return (

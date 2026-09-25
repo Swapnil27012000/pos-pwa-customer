@@ -28,7 +28,7 @@ export const DineInBanner: React.FC = () => {
           Welcome to {restaurant.name}
         </h2>
         <p className="text-[13px] text-[#687182] font-medium mt-0.5">
-          Assigned to Table {restaurant.tableNumber} • {restaurant.tableArea}
+          Assigned to {restaurant.tableNumber.startsWith("Table") ? restaurant.tableNumber : `Table ${restaurant.tableNumber}`} • {restaurant.tableArea}
         </p>
       </div>
 
@@ -38,6 +38,7 @@ export const DineInBanner: React.FC = () => {
         <button
           type="button"
           onClick={() => {
+            setActiveCategory("all");
             const el = document.getElementById("popular-dishes");
             if (el) el.scrollIntoView({ behavior: "smooth" });
           }}
@@ -51,7 +52,7 @@ export const DineInBanner: React.FC = () => {
         <button
           type="button"
           onClick={() => {
-            setActiveCategory("starters");
+            setActiveCategory("all");
             const el = document.getElementById("popular-dishes");
             if (el) el.scrollIntoView({ behavior: "smooth" });
           }}
