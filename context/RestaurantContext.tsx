@@ -4,11 +4,21 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import {
   RestaurantApiResponse,
   CartItem,
+  CartItemModifier,
   CartState,
   DishItem,
   NavigationTab,
+  PublicOrder,
 } from "@/types/restaurant";
 import { mockRestaurantData } from "@/data/mockRestaurantData";
+
+interface AddToCartDetails {
+  variantId?: string;
+  variantName?: string;
+  modifiersList?: CartItemModifier[];
+  notes?: string;
+  customUnitPrice?: number;
+}
 
 interface RestaurantContextType {
   data: RestaurantApiResponse;
@@ -18,8 +28,17 @@ interface RestaurantContextType {
   activeCategory: string;
   setActiveCategory: (catId: string) => void;
   cart: CartState;
-  addToCart: (dish: DishItem, quantity?: number, portion?: string, modifiers?: string[]) => void;
+  tableId: string | null;
+  restaurantSlug: string | null;
+  addToCart: (
+    dish: DishItem,
+    quantity?: number,
+    portion?: string,
+    modifiers?: string[],
+    details?: AddToCartDetails
+  ) => void;
   removeFromCart: (dishId: string) => void;
+  clearCart: () => void;
   toggleDishInCart: (dish: DishItem) => void;
   isDishInCart: (dishId: string) => boolean;
   activeTab: NavigationTab;
@@ -35,6 +54,15 @@ interface RestaurantContextType {
   copiedCouponToast: string | null;
   copyCoupon: (code: string) => void;
   loadSampleDishes: () => void;
+  currentOrder: PublicOrder | null;
+  isSubmittingOrder: boolean;
+  orderError: string | null;
+  placeOrder: (customerDetails?: {
+    name?: string;
+    phone?: string;
+    notes?: string;
+  }) => Promise<PublicOrder>;
+  refreshCurrentOrder: () => Promise<void>;
 }
 
 const RestaurantContext = createContext<RestaurantContextType | undefined>(undefined);
@@ -44,6 +72,9 @@ export const RestaurantProvider: React.FC<{
   initialTableId?: string;
   initialRestaurantSlug?: string;
 }> = ({ children, initialTableId, initialRestaurantSlug }) => {
+  const [slug, setSlug] = useState<string | null>(initialRestaurantSlug || null);
+  const [tableId, setTableId] = useState<string | null>(initialTableId || null);
+
   const [data, setData] = useState<RestaurantApiResponse>(() => {
     if (!initialTableId && !initialRestaurantSlug) return mockRestaurantData;
     return {
@@ -51,6 +82,7 @@ export const RestaurantProvider: React.FC<{
       restaurant: {
         ...mockRestaurantData.restaurant,
         name: initialRestaurantSlug || mockRestaurantData.restaurant.name,
+        slug: initialRestaurantSlug || mockRestaurantData.restaurant.slug,
         tableNumber: initialTableId ? `Table ${initialTableId}` : mockRestaurantData.restaurant.tableNumber,
       },
       dishes: [],
@@ -70,80 +102,72 @@ export const RestaurantProvider: React.FC<{
   const [selectedDishForCustomization, setSelectedDishForCustomization] = useState<DishItem | null>(null);
   const [copiedCouponToast, setCopiedCouponToast] = useState<string | null>(null);
 
+  // Real Order placement and tracking states
+  const [currentOrder, setCurrentOrder] = useState<PublicOrder | null>(null);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState<boolean>(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
+
   // Cart state
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
-    // If scanning a specific table via QR code, start with empty cart for dine-in ordering
     if (initialTableId || initialRestaurantSlug) {
       return [];
     }
-    // Default pre-seeded demo cart for homepage preview
-    const initialBurger = mockRestaurantData.dishes.find((d) => d.id === "prime-truffle-burger")!;
+    const initialBurger = mockRestaurantData.dishes.find((d) => d.id === "prime-truffle-burger");
+    if (!initialBurger) return [];
     return [
       {
         dishId: initialBurger.id,
         dish: initialBurger,
         quantity: 1,
-        totalPrice: 289,
-      },
-      {
-        dishId: "garlic-butter-naan",
-        dish: {
-          id: "garlic-butter-naan",
-          name: "Garlic Butter Naan",
-          description: "Fresh clay-oven baked bread with garlic butter",
-          price: 89,
-          rating: 4.8,
-          imageUrl: "https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?auto=format&fit=crop&w=600&q=80",
-          isVeg: true,
-          category: "indian",
-        },
-        quantity: 2,
-        totalPrice: 178,
+        totalPrice: initialBurger.price,
       },
     ];
   });
 
   // Fetch real restaurant menu from API
   const fetchMenu = useCallback(async () => {
-    let slug = initialRestaurantSlug;
-    let tableId = initialTableId;
+    let resolvedSlug = slug || initialRestaurantSlug;
+    let resolvedTableId = tableId || initialTableId;
 
     if (typeof window !== "undefined") {
       // 1. Check path /r/:slug/t/:tableId or /r/:slug
       const pathParts = window.location.pathname.split("/").filter(Boolean);
       if (pathParts[0] === "r" && pathParts[1]) {
-        if (!slug) slug = pathParts[1];
-        if (!tableId && pathParts[2] === "t" && pathParts[3]) {
-          tableId = pathParts[3];
+        if (!resolvedSlug) resolvedSlug = pathParts[1];
+        if (!resolvedTableId && pathParts[2] === "t" && pathParts[3]) {
+          resolvedTableId = pathParts[3];
         }
       }
 
       // 2. Check query params ?slug=...&tableId=...
       const searchParams = new URLSearchParams(window.location.search);
-      if (!slug && searchParams.get("slug")) {
-        slug = searchParams.get("slug")!;
+      if (!resolvedSlug && searchParams.get("slug")) {
+        resolvedSlug = searchParams.get("slug")!;
       }
-      if (!tableId && searchParams.get("tableId")) {
-        tableId = searchParams.get("tableId")!;
+      if (!resolvedTableId && searchParams.get("tableId")) {
+        resolvedTableId = searchParams.get("tableId")!;
       }
 
       // 3. Fallback to sessionStorage
-      if (!slug) {
-        slug = sessionStorage.getItem("pwa_restaurant_slug") || undefined;
+      if (!resolvedSlug) {
+        resolvedSlug = sessionStorage.getItem("pwa_restaurant_slug") || undefined;
       }
-      if (!tableId) {
-        tableId = sessionStorage.getItem("pwa_table_id") || undefined;
+      if (!resolvedTableId) {
+        resolvedTableId = sessionStorage.getItem("pwa_table_id") || undefined;
       }
     }
 
-    if (!slug) {
+    if (resolvedSlug) setSlug(resolvedSlug);
+    if (resolvedTableId) setTableId(resolvedTableId);
+
+    if (!resolvedSlug) {
       setIsLoading(false);
       return;
     }
 
     if (typeof window !== "undefined") {
-      sessionStorage.setItem("pwa_restaurant_slug", slug);
-      if (tableId) sessionStorage.setItem("pwa_table_id", tableId);
+      sessionStorage.setItem("pwa_restaurant_slug", resolvedSlug);
+      if (resolvedTableId) sessionStorage.setItem("pwa_table_id", resolvedTableId);
     }
 
     setIsLoading(true);
@@ -152,7 +176,7 @@ export const RestaurantProvider: React.FC<{
     try {
       const baseUrl =
         process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") || "http://localhost:3000";
-      const endpoint = `${baseUrl}/api/public/restaurants/${encodeURIComponent(slug)}/menu`;
+      const endpoint = `${baseUrl}/api/public/restaurants/${encodeURIComponent(resolvedSlug)}/menu`;
 
       const res = await fetch(endpoint, {
         headers: {
@@ -168,17 +192,17 @@ export const RestaurantProvider: React.FC<{
       const menuData: RestaurantApiResponse = await res.json();
 
       if (menuData && menuData.restaurant) {
-        const resolvedTable = tableId
-          ? tableId.startsWith("Table")
-            ? tableId
-            : `Table ${tableId}`
+        const displayTable = resolvedTableId
+          ? resolvedTableId.startsWith("Table")
+            ? resolvedTableId
+            : `Table ${resolvedTableId}`
           : menuData.restaurant.tableNumber || "Dining Table";
 
         setData({
           ...menuData,
           restaurant: {
             ...menuData.restaurant,
-            tableNumber: resolvedTable,
+            tableNumber: displayTable,
           },
           categories: menuData.categories || [],
           dishes: menuData.dishes || [],
@@ -191,11 +215,170 @@ export const RestaurantProvider: React.FC<{
     } finally {
       setIsLoading(false);
     }
-  }, [initialRestaurantSlug, initialTableId]);
+  }, [slug, tableId, initialRestaurantSlug, initialTableId]);
 
   useEffect(() => {
     fetchMenu();
   }, [fetchMenu]);
+
+  // Refresh current order status from backend
+  const refreshCurrentOrder = useCallback(async () => {
+    let orderId = currentOrder?.id;
+    if (!orderId && typeof window !== "undefined") {
+      orderId = sessionStorage.getItem("pwa_current_order_id") || undefined;
+    }
+    if (!orderId) return;
+
+    try {
+      const baseUrl =
+        process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") || "http://localhost:3000";
+      const endpoint = `${baseUrl}/api/public/orders/${encodeURIComponent(orderId)}`;
+
+      const res = await fetch(endpoint, {
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      });
+
+      if (res.ok) {
+        const updatedOrder: PublicOrder = await res.json();
+        setCurrentOrder(updatedOrder);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("pwa_current_order", JSON.stringify(updatedOrder));
+        }
+      }
+    } catch (err) {
+      console.warn("[PWA] Error refreshing order status:", err);
+    }
+  }, [currentOrder?.id]);
+
+  // Restore current order from sessionStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("pwa_current_order");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.id) {
+            setCurrentOrder(parsed);
+          }
+        } catch {}
+      }
+      refreshCurrentOrder();
+    }
+  }, [refreshCurrentOrder]);
+
+  // Real-time polling when order is active
+  useEffect(() => {
+    if (!currentOrder?.id) return;
+    if (["completed", "cancelled"].includes(currentOrder.status)) return;
+
+    const interval = setInterval(() => {
+      refreshCurrentOrder();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [currentOrder?.id, currentOrder?.status, refreshCurrentOrder]);
+
+  // Place a real dining order
+  const placeOrder = async (customerDetails?: {
+    name?: string;
+    phone?: string;
+    notes?: string;
+  }): Promise<PublicOrder> => {
+    if (cartItems.length === 0) {
+      throw new Error("Your cart is empty");
+    }
+
+    const effectiveSlug =
+      slug ||
+      (typeof window !== "undefined"
+        ? sessionStorage.getItem("pwa_restaurant_slug")
+        : null) ||
+      data.restaurant.slug ||
+      data.restaurant.id;
+
+    const effectiveTable =
+      tableId ||
+      (typeof window !== "undefined"
+        ? sessionStorage.getItem("pwa_table_id")
+        : null) ||
+      data.restaurant.tableNumber.replace(/^Table\s*/i, "").trim();
+
+    if (!effectiveTable) {
+      throw new Error(
+        "Table identifier is missing. Please scan a table QR code to place your order."
+      );
+    }
+
+    setIsSubmittingOrder(true);
+    setOrderError(null);
+
+    try {
+      const baseUrl =
+        process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") || "http://localhost:3000";
+      const endpoint = `${baseUrl}/api/public/restaurants/${encodeURIComponent(
+        effectiveSlug
+      )}/orders`;
+
+      const payload = {
+        tableId: effectiveTable,
+        customer: {
+          name: customerDetails?.name?.trim() || undefined,
+          phone: customerDetails?.phone?.trim() || undefined,
+        },
+        notes: customerDetails?.notes?.trim() || undefined,
+        items: cartItems.map((item) => ({
+          menuItemId: item.dishId,
+          variantId: item.variantId || undefined,
+          quantity: item.quantity,
+          notes: item.notes || undefined,
+          selectedModifiers:
+            item.modifiersList && item.modifiersList.length > 0
+              ? item.modifiersList.map((m) => ({
+                  modifierId: m.id,
+                  quantity: m.quantity || 1,
+                }))
+              : item.selectedModifiers && item.selectedModifiers.length > 0
+              ? item.selectedModifiers.map((id) => ({
+                  modifierId: id,
+                  quantity: 1,
+                }))
+              : undefined,
+        })),
+      };
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `Failed to submit order (${res.status})`);
+      }
+
+      const orderResult: PublicOrder = await res.json();
+      setCurrentOrder(orderResult);
+
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("pwa_current_order_id", orderResult.id);
+        sessionStorage.setItem("pwa_current_order", JSON.stringify(orderResult));
+      }
+
+      setCartItems([]);
+      setIsCartOpen(false);
+      setActiveTab("orders");
+      return orderResult;
+    } catch (err: any) {
+      setOrderError(err.message || "Failed to submit order");
+      throw err;
+    } finally {
+      setIsSubmittingOrder(false);
+    }
+  };
 
   const loadSampleDishes = () => {
     setData((prev) => ({
@@ -224,21 +407,34 @@ export const RestaurantProvider: React.FC<{
     dish: DishItem,
     quantity = 1,
     portion?: string,
-    modifiers: string[] = []
+    modifiers: string[] = [],
+    details?: AddToCartDetails
   ) => {
     setCartItems((prev) => {
-      const existing = prev.find((item) => item.dishId === dish.id);
-      if (existing) {
-        return prev.map((item) =>
-          item.dishId === dish.id
-            ? {
-                ...item,
-                quantity: item.quantity + quantity,
-                totalPrice: (item.quantity + quantity) * dish.price,
-              }
-            : item
-        );
+      const modKey = (modifiers || []).slice().sort().join(",");
+      const itemKey = `${dish.id}-${details?.variantId || "def"}-${modKey}`;
+
+      const existingIndex = prev.findIndex((item) => {
+        const existingModKey = (item.selectedModifiers || []).slice().sort().join(",");
+        const existingKey = `${item.dishId}-${item.variantId || "def"}-${existingModKey}`;
+        return existingKey === itemKey;
+      });
+
+      const unitPrice = details?.customUnitPrice ?? dish.price;
+
+      if (existingIndex > -1) {
+        const existing = prev[existingIndex];
+        const newQty = existing.quantity + quantity;
+        const perUnitPrice = existing.totalPrice / existing.quantity;
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...existing,
+          quantity: newQty,
+          totalPrice: newQty * perUnitPrice,
+        };
+        return updated;
       }
+
       return [
         ...prev,
         {
@@ -246,8 +442,12 @@ export const RestaurantProvider: React.FC<{
           dish,
           quantity,
           portionSize: portion,
+          variantId: details?.variantId,
+          variantName: details?.variantName,
           selectedModifiers: modifiers,
-          totalPrice: dish.price * quantity,
+          modifiersList: details?.modifiersList,
+          notes: details?.notes,
+          totalPrice: unitPrice * quantity,
         },
       ];
     });
@@ -255,6 +455,10 @@ export const RestaurantProvider: React.FC<{
 
   const removeFromCart = (dishId: string) => {
     setCartItems((prev) => prev.filter((item) => item.dishId !== dishId));
+  };
+
+  const clearCart = () => {
+    setCartItems([]);
   };
 
   const toggleDishInCart = (dish: DishItem) => {
@@ -285,8 +489,11 @@ export const RestaurantProvider: React.FC<{
         activeCategory,
         setActiveCategory,
         cart,
+        tableId,
+        restaurantSlug: slug,
         addToCart,
         removeFromCart,
+        clearCart,
         toggleDishInCart,
         isDishInCart,
         activeTab,
@@ -302,6 +509,11 @@ export const RestaurantProvider: React.FC<{
         copiedCouponToast,
         copyCoupon,
         loadSampleDishes,
+        currentOrder,
+        isSubmittingOrder,
+        orderError,
+        placeOrder,
+        refreshCurrentOrder,
       }}
     >
       {children}
@@ -316,3 +528,4 @@ export const useRestaurant = () => {
   }
   return context;
 };
+

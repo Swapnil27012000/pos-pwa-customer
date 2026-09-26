@@ -80,12 +80,23 @@ export interface SpecialOfferConfig {
   buttonText: string;
 }
 
+export interface CartItemModifier {
+  id: string;
+  name: string;
+  price: number;
+  quantity?: number;
+}
+
 export interface CartItem {
   dishId: string;
   dish: DishItem;
   quantity: number;
   portionSize?: string;
+  variantId?: string;
+  variantName?: string;
   selectedModifiers?: string[];
+  modifiersList?: CartItemModifier[];
+  notes?: string;
   totalPrice: number;
 }
 
@@ -97,6 +108,58 @@ export interface CartState {
 }
 
 export type NavigationTab = 'menu' | 'floor_plan' | 'orders' | 'cart';
+
+export interface PublicOrderItem {
+  id: string;
+  menuItemId: string;
+  name: string;
+  quantity: number;
+  unitPrice: string | number;
+  totalPrice: string | number;
+  notes?: string | null;
+  modifiers?: Array<{
+    id: string;
+    modifierId: string;
+    name: string;
+    unitPrice: string | number;
+    quantity: number;
+  }>;
+}
+
+export interface PublicOrder {
+  id: string;
+  orderNumber: number;
+  restaurantId: string;
+  restaurantName: string;
+  restaurantSlug: string;
+  currency: string;
+  tableId?: string | null;
+  tableNumber: string;
+  tableName?: string;
+  tableArea?: string;
+  status:
+    | 'draft'
+    | 'pending'
+    | 'confirmed'
+    | 'preparing'
+    | 'ready'
+    | 'served'
+    | 'completed'
+    | 'cancelled';
+  type: string;
+  subtotal: string;
+  tax: string;
+  discount: string;
+  total: string;
+  notes?: string | null;
+  customer?: {
+    name?: string | null;
+    phone?: string | null;
+  } | null;
+  items: PublicOrderItem[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 /**
  * Top-level structure of api.json
@@ -110,3 +173,4 @@ export interface RestaurantApiResponse {
   dishes: DishItem[];
   specialOffer: SpecialOfferConfig;
 }
+

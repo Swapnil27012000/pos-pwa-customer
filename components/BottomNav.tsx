@@ -6,7 +6,8 @@ import { useRestaurant } from "@/context/RestaurantContext";
 import { NavigationTab } from "@/types/restaurant";
 
 export const BottomNav: React.FC = () => {
-  const { activeTab, setActiveTab, cart, setIsCartOpen, setIsBookTableOpen } = useRestaurant();
+  const { activeTab, setActiveTab, cart, setIsCartOpen, setIsBookTableOpen, currentOrder } =
+    useRestaurant();
 
   const handleTabClick = (tab: NavigationTab) => {
     setActiveTab(tab);
@@ -16,6 +17,9 @@ export const BottomNav: React.FC = () => {
       setIsBookTableOpen(true);
     }
   };
+
+  const hasActiveOrder =
+    currentOrder && !["completed", "cancelled"].includes(currentOrder.status);
 
   const navItems: { id: NavigationTab; label: string; icon: React.ReactNode; badge?: boolean }[] = [
     {
@@ -32,6 +36,7 @@ export const BottomNav: React.FC = () => {
       id: "orders",
       label: "Orders",
       icon: <TruckIcon size={20} className="stroke-[2.2]" />,
+      badge: Boolean(hasActiveOrder),
     },
     {
       id: "cart",

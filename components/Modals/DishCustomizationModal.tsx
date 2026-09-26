@@ -58,7 +58,33 @@ export const DishCustomizationModal: React.FC = () => {
   const totalPrice = unitPrice * quantity;
 
   const handleAddToCart = () => {
-    addToCart(dish, quantity, selectedPortion, selectedExtras);
+    const selectedPortionObj = portionOptions.find((p) => p.id === selectedPortion);
+    const hasRealVariant = dish.portionSizes?.some((p) => p.id === selectedPortion);
+    const variantId = hasRealVariant ? selectedPortion : undefined;
+
+    const selectedModifiersList = selectedExtras.map((extraId) => {
+      const extra = extrasOptions.find((e) => e.id === extraId);
+      return {
+        id: extraId,
+        name: extra?.name || extraId,
+        price: extra?.price || 0,
+        quantity: 1,
+      };
+    });
+
+    addToCart(
+      dish,
+      quantity,
+      selectedPortionObj?.name || selectedPortion,
+      selectedExtras,
+      {
+        variantId,
+        variantName: selectedPortionObj?.name,
+        modifiersList: selectedModifiersList,
+        notes: instructions.trim() || undefined,
+        customUnitPrice: unitPrice,
+      }
+    );
     setSelectedDishForCustomization(null);
   };
 

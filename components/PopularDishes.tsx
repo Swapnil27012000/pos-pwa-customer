@@ -231,13 +231,30 @@ export const PopularDishes: React.FC = () => {
 
                 {/* Price and Add/Added Button Row */}
                 <div className="flex items-center justify-between mt-2 pt-1">
-                  <div className="text-[17px] font-bold text-[#181C23] tnum">
-                    {currencySymbol}{dish.price}
+                  <div>
+                    <span className="text-[17px] font-bold text-[#181C23] tnum">
+                      {currencySymbol}{dish.price}
+                    </span>
+                    {((dish.portionSizes && dish.portionSizes.length > 0) ||
+                      (dish.modifierGroups && dish.modifierGroups.length > 0)) && (
+                      <span className="block text-[10px] font-semibold text-[#FF5A38]">
+                        Customisable
+                      </span>
+                    )}
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => toggleDishInCart(dish)}
+                    onClick={() => {
+                      if (
+                        (dish.portionSizes && dish.portionSizes.length > 0) ||
+                        (dish.modifierGroups && dish.modifierGroups.length > 0)
+                      ) {
+                        setSelectedDishForCustomization(dish);
+                      } else {
+                        toggleDishInCart(dish);
+                      }
+                    }}
                     className={`flex items-center gap-1 px-3.5 py-1.5 rounded-xl text-[12.5px] font-bold transition active:scale-95 shadow-xs ${
                       added
                         ? "bg-[#FF5A38] hover:bg-[#E84E2E] text-white"
