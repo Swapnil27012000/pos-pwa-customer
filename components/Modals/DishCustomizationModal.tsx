@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { StarIcon, ClockIcon, CloseIcon, PlusIcon } from "../Icons";
 import { VegNonVegBadge } from "../VegNonVegBadge";
@@ -11,12 +11,26 @@ export const DishCustomizationModal: React.FC = () => {
     useRestaurant();
 
   const [quantity, setQuantity] = useState(1);
-  const [selectedPortion, setSelectedPortion] = useState("reg");
+  const [selectedPortion, setSelectedPortion] = useState<string>("");
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [instructions, setInstructions] = useState("");
 
-  if (!selectedDishForCustomization) return null;
   const dish = selectedDishForCustomization;
+
+  useEffect(() => {
+    if (dish) {
+      setQuantity(1);
+      setInstructions("");
+      setSelectedExtras([]);
+      const defaultPortion =
+        dish.portionSizes?.find((p) => p.included)?.id ||
+        dish.portionSizes?.[0]?.id ||
+        "";
+      setSelectedPortion(defaultPortion);
+    }
+  }, [dish]);
+
+  if (!dish) return null;
 
   const currencySymbol =
     data.restaurant.currency?.toUpperCase() === "USD"
@@ -27,19 +41,15 @@ export const DishCustomizationModal: React.FC = () => {
       ? "£"
       : "₹";
 
-  const portionOptions = dish.portionSizes || [
-    { id: "reg", name: "Regular Serving", price: 0, included: true },
-  ];
+  const hasPortionSizes = Boolean(dish.portionSizes && dish.portionSizes.length > 0);
+  const portionOptions = dish.portionSizes || [];
 
-  // Extract all available modifier options from real modifierGroups or fallback extras
-  const realModifierOptions = (dish.modifierGroups || []).flatMap((g) => g.options);
-  const extrasOptions =
-    realModifierOptions.length > 0
-      ? realModifierOptions
-      : [
-          { id: "cheese", name: "Extra Cheese Layer", price: 40 },
-          { id: "chutney", name: "Special House Sauce", price: 20 },
-        ];
+  // Extract only real modifier groups from backend
+  const modifierGroups = (dish.modifierGroups || []).filter(
+    (g) => g.options && g.options.length > 0
+  );
+  const hasModifiers = modifierGroups.length > 0;
+  const allAvailableModifiers = modifierGroups.flatMap((g) => g.options);
 
   const toggleExtra = (id: string) => {
     setSelectedExtras((prev) =>
@@ -48,9 +58,12 @@ export const DishCustomizationModal: React.FC = () => {
   };
 
   // Calculate dynamic price
-  const portionPrice = portionOptions.find((p) => p.id === selectedPortion)?.price || 0;
+  const portionPrice = hasPortionSizes
+    ? portionOptions.find((p) => p.id === selectedPortion)?.price || 0
+    : 0;
+
   const extrasPrice = selectedExtras.reduce((sum, extraId) => {
-    const extra = extrasOptions.find((e) => e.id === extraId);
+    const extra = allAvailableModifiers.find((e) => e.id === extraId);
     return sum + (extra?.price || 0);
   }, 0);
 
@@ -58,12 +71,13 @@ export const DishCustomizationModal: React.FC = () => {
   const totalPrice = unitPrice * quantity;
 
   const handleAddToCart = () => {
-    const selectedPortionObj = portionOptions.find((p) => p.id === selectedPortion);
-    const hasRealVariant = dish.portionSizes?.some((p) => p.id === selectedPortion);
-    const variantId = hasRealVariant ? selectedPortion : undefined;
+    const selectedPortionObj = hasPortionSizes
+      ? portionOptions.find((p) => p.id === selectedPortion)
+      : undefined;
+    const variantId = selectedPortionObj ? selectedPortionObj.id : undefined;
 
     const selectedModifiersList = selectedExtras.map((extraId) => {
-      const extra = extrasOptions.find((e) => e.id === extraId);
+      const extra = allAvailableModifiers.find((e) => e.id === extraId);
       return {
         id: extraId,
         name: extra?.name || extraId,
@@ -75,7 +89,7 @@ export const DishCustomizationModal: React.FC = () => {
     addToCart(
       dish,
       quantity,
-      selectedPortionObj?.name || selectedPortion,
+      selectedPortionObj?.name || (hasPortionSizes ? selectedPortion : "Standard"),
       selectedExtras,
       {
         variantId,
@@ -181,90 +195,127 @@ export const DishCustomizationModal: React.FC = () => {
           </div>
 
           {/* Portion Size Radio */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h4 className="text-[14.5px] font-bold text-[#181C23]">Choose Portion Size</h4>
-              <span className="text-[11px] font-bold text-[#FF5A38] bg-[#FFF1EE] px-2 py-0.5 rounded-full">
-                Required (1)
-              </span>
-            </div>
-
+          {hasPortionSizes && portionOptions.length > 0 && (
             <div className="space-y-2">
-              {portionOptions.map((opt) => {
-                const selected = selectedPortion === opt.id;
-                return (
-                  <label
-                    key={opt.id}
-                    onClick={() => setSelectedPortion(opt.id)}
-                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
-                      selected
-                        ? "border-[#FF5A38] bg-[#FFF1EE]"
-                        : "border-[#EDEFF2] bg-white hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                          selected ? "border-[#FF5A38]" : "border-gray-300"
-                        }`}
-                      >
-                        {selected && <div className="w-2 h-2 rounded-full bg-[#FF5A38]" />}
+              <div className="flex items-center justify-between">
+                <h4 className="text-[14.5px] font-bold text-[#181C23]">Choose Portion Size</h4>
+                <span className="text-[11px] font-bold text-[#FF5A38] bg-[#FFF1EE] px-2 py-0.5 rounded-full">
+                  Required (1)
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {portionOptions.map((opt) => {
+                  const selected = selectedPortion === opt.id;
+                  return (
+                    <label
+                      key={opt.id}
+                      onClick={() => setSelectedPortion(opt.id)}
+                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
+                        selected
+                          ? "border-[#FF5A38] bg-[#FFF1EE]"
+                          : "border-[#EDEFF2] bg-white hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                            selected ? "border-[#FF5A38]" : "border-gray-300"
+                          }`}
+                        >
+                          {selected && <div className="w-2 h-2 rounded-full bg-[#FF5A38]" />}
+                        </div>
+                        <span className="text-[13.5px] font-semibold text-[#181C23]">
+                          {opt.name}
+                        </span>
                       </div>
-                      <span className="text-[13.5px] font-semibold text-[#181C23]">
-                        {opt.name}
+                      <span className="text-[13px] font-medium text-[#687182]">
+                        {opt.price === 0 ? "Included" : `+${currencySymbol}${opt.price}`}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Extras / Modifiers Groups */}
+          {hasModifiers && (
+            <div className="space-y-4">
+              {modifierGroups.map((group) => {
+                if (!group.options || group.options.length === 0) return null;
+                const isRadio = group.type === "radio";
+                return (
+                  <div key={group.id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[14.5px] font-bold text-[#181C23]">{group.title}</h4>
+                      <span className="text-[11px] text-[#687182]">
+                        {group.required ? (
+                          <span className="text-[#FF5A38] bg-[#FFF1EE] px-2 py-0.5 rounded-full font-bold">
+                            Required (1)
+                          </span>
+                        ) : (
+                          "Optional"
+                        )}
                       </span>
                     </div>
-                    <span className="text-[13px] font-medium text-[#687182]">
-                      {opt.price === 0 ? "Included" : `+${currencySymbol}${opt.price}`}
-                    </span>
-                  </label>
+
+                    <div className="space-y-2">
+                      {group.options.map((extra) => {
+                        const selected = selectedExtras.includes(extra.id);
+                        return (
+                          <label
+                            key={extra.id}
+                            onClick={() => {
+                              if (isRadio) {
+                                const groupOptionIds = new Set(group.options.map((o) => o.id));
+                                setSelectedExtras((prev) => [
+                                  ...prev.filter((id) => !groupOptionIds.has(id)),
+                                  extra.id,
+                                ]);
+                              } else {
+                                toggleExtra(extra.id);
+                              }
+                            }}
+                            className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
+                              selected
+                                ? "border-[#FF5A38] bg-[#FFF1EE]"
+                                : "border-[#EDEFF2] bg-white hover:border-gray-300"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div
+                                className={`w-4 h-4 ${
+                                  isRadio ? "rounded-full" : "rounded-md"
+                                } border flex items-center justify-center ${
+                                  selected
+                                    ? "bg-[#FF5A38] border-[#FF5A38] text-white"
+                                    : "border-gray-300"
+                                }`}
+                              >
+                                {selected &&
+                                  (isRadio ? (
+                                    <div className="w-2 h-2 rounded-full bg-white" />
+                                  ) : (
+                                    <span className="text-[10px]">✓</span>
+                                  ))}
+                              </div>
+                              <span className="text-[13.5px] font-semibold text-[#181C23]">
+                                {extra.name}
+                              </span>
+                            </div>
+                            <span className="text-[13px] font-bold text-[#FF5A38]">
+                              {extra.price === 0 ? "Free" : `+${currencySymbol}${extra.price}`}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
             </div>
-          </div>
-
-          {/* Extras / Modifiers Checkboxes */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h4 className="text-[14.5px] font-bold text-[#181C23]">Add Extras & Modifiers</h4>
-              <span className="text-[11px] text-[#687182]">Optional</span>
-            </div>
-
-            <div className="space-y-2">
-              {extrasOptions.map((extra) => {
-                const selected = selectedExtras.includes(extra.id);
-                return (
-                  <label
-                    key={extra.id}
-                    onClick={() => toggleExtra(extra.id)}
-                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
-                      selected
-                        ? "border-[#FF5A38] bg-[#FFF1EE]"
-                        : "border-[#EDEFF2] bg-white hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className={`w-4 h-4 rounded-md border flex items-center justify-center ${
-                          selected
-                            ? "bg-[#FF5A38] border-[#FF5A38] text-white"
-                            : "border-gray-300"
-                        }`}
-                      >
-                        {selected && <span className="text-[10px]">✓</span>}
-                      </div>
-                      <span className="text-[13.5px] font-semibold text-[#181C23]">
-                        {extra.name}
-                      </span>
-                    </div>
-                    <span className="text-[13px] font-bold text-[#FF5A38]">
-                      +{currencySymbol}{extra.price}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
+          )}
 
           {/* Kitchen Instructions */}
           <div>
